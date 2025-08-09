@@ -356,7 +356,7 @@ export default function App() {
       {/* 글쓰기 모달 */}
       {composeOpen && (
         <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white text-black w-full max-w-2xl rounded-2xl shadow-xl p-6 relative">
+         <div className="bg-white text-black w-full max-w-3xl rounded-2xl shadow-xl p-6 relative max-h-[80vh] overflow-y-auto">
             <button className="absolute top-3 right-3 text-gray-500" onClick={resetCompose}>✕</button>
             <h2 className="text-xl font-bold mb-4">추억 쓰기 — {ymd(selectedDate)}</h2>
 
