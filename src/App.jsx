@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const PASSWORD = "shinwjdgusrla!";
@@ -47,7 +46,6 @@ const LS_POSTS = "memory_site_posts_v1";
 const LS_LIKES = "memory_site_likes_v1";
 
 export default function App() {
-  // 현재시각
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
@@ -262,7 +260,6 @@ export default function App() {
                   <MonthView
                     key={idx}
                     base={m}
-                    now={now}
                     selectedDate={selectedDate}
                     onSelect={(d) => setSelectedDate(d)}
                     isDateClickable={isDateClickable}
