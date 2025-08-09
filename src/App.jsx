@@ -1,9 +1,10 @@
+// src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const PASSWORD = "shinwjdgusrla!";
 const MIN_INIT_YEAR = 2025;
 const MIN_INIT_MONTH = 8; // 2025-08이 최상단 기준
-const SPECIAL_MIN_DATE = new Date("2025-08-09T00:00:00"); // 8/9 이전 비활성
+const SPECIAL_MIN_DATE = new Date("2025-08-09T00:00:00"); // 8/9 이전 비활성(요구사항)
 const MAX_FUTURE_LIMIT = new Date("2224-12-31T23:59:59");
 
 // 날짜 유틸
@@ -45,7 +46,17 @@ function getMonthDaysGrid(base) {
 const LS_POSTS = "memory_site_posts_v1";
 const LS_LIKES = "memory_site_likes_v1";
 
+// 오늘인지 판별
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default function App() {
+  // 현재시각
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
@@ -69,10 +80,14 @@ export default function App() {
     return nextBottom <= firstOfMonth(MAX_FUTURE_LIMIT.getFullYear(), MAX_FUTURE_LIMIT.getMonth());
   }, [topMonth]);
 
-  // 선택 날짜
+  // 선택 날짜: 기본은 오늘과 2025-08-09 중 더 늦은 날짜
   const [selectedDate, setSelectedDate] = useState(
-    () => new Date(Math.max(SPECIAL_MIN_DATE.getTime(), new Date().getTime()))
+    () => new Date(Math.max(SPECIAL_MIN_DATE.getTime(), new Date().setHours(0,0,0,0)))
   );
+
+  // 글쓰기 허용 조건: "오늘만 가능"
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const canWrite = isSameDay(selectedDate, today);
 
   // 모드
   const [mode, setMode] = useState("landing"); // landing | normal | admin
@@ -125,11 +140,11 @@ export default function App() {
   // 전체보기 모달
   const [viewPost, setViewPost] = useState(null);
 
-  // 날짜 클릭 가능 판단
+  // 날짜 클릭 가능(보기용): 오늘과 과거는 볼 수 있고, 미래는 비활성
   function isDateClickable(d) {
     if (!d) return false;
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (d > today) return false; // 미래 불가
+    const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (d > today0) return false; // 미래 불가
     if (d.getFullYear() === 2025 && d.getMonth() === 7 && d < SPECIAL_MIN_DATE) return false; // 8/9 이전 불가
     return true;
   }
@@ -143,10 +158,15 @@ export default function App() {
     setTopMonth(addMonths(topMonth, 3));
   }
 
+  // + 버튼: 오늘만 작성 가능(이전/미래 클릭 시 안내 후 열지 않음)
   function openCompose() {
-    if (!isDateClickable(selectedDate)) return;
+    if (!canWrite) {
+      alert("글 쓰기는 '오늘 날짜'에만 가능합니다. 달력에서 오늘을 선택해 주세요.");
+      return;
+    }
     setComposeOpen(true);
   }
+
   function resetCompose() {
     setComposeOpen(false);
     setNameInput("");
@@ -160,6 +180,7 @@ export default function App() {
     setInvalidTitle(false);
     setInvalidBody(false);
   }
+
   function validateCompose() {
     let ok = true;
     if (!nameInput.trim()) { ok = false; setInvalidName(true); setTimeout(() => setInvalidName(false), 1300); }
@@ -169,8 +190,15 @@ export default function App() {
     }
     return ok;
   }
+
   function submitCompose() {
+    // 오늘만 제출 가능
+    if (!canWrite) {
+      alert("오늘 날짜에만 글을 등록할 수 있습니다.");
+      return;
+    }
     if (!validateCompose()) return;
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const dateKey = ymd(selectedDate);
     const newPost = {
@@ -312,11 +340,12 @@ export default function App() {
               </div>
             </div>
 
-            {/* 고정 + 버튼 */}
+            {/* 고정 + 버튼 — 오늘만 활성화(아니면 흐리게) */}
             <button
               onClick={openCompose}
-              className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-black border border-white flex items-center justify-center"
+              className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-black border border-white flex items-center justify-center ${!canWrite ? 'opacity-40 cursor-not-allowed' : ''}`}
               title="추억 남기기"
+              aria-disabled={!canWrite}
             >
               <span className="text-white text-3xl leading-none">+</span>
             </button>
