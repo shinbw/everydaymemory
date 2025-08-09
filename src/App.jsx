@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const PASSWORD = "shinwjdgusrla!";
@@ -13,36 +14,30 @@ function ymd(date) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
-
-function firstOfMonth(y, m) {
-  return new Date(y, m, 1);
+function firstOfMonth(y, mIndex) {
+  return new Date(y, mIndex, 1);
 }
-
 function addMonths(date, n) {
   return new Date(date.getFullYear(), date.getMonth() + n, 1);
 }
-
 function sameYM(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
-
 function monthLabel(date) {
   const y = date.getFullYear();
   const m = date.getMonth() + 1;
   return `${y}년 ${m}월`;
 }
-
 function getMonthDaysGrid(base) {
-  // 7열 달력 배열 생성 (빈칸 포함)
   const year = base.getFullYear();
   const month = base.getMonth();
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
-  const startWeekday = (first.getDay() + 6) % 7; // 월(0) 기준
-  const totalDays = last.getDate();
+  const startWeekday = (first.getDay() + 6) % 7; // 월=0 기준
+  const total = last.getDate();
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= totalDays; d++) cells.push(new Date(year, month, d));
+  for (let d = 1; d <= total; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
@@ -52,39 +47,41 @@ const LS_POSTS = "memory_site_posts_v1";
 const LS_LIKES = "memory_site_likes_v1";
 
 export default function App() {
+  // 현재시각
   const [now, setNow] = useState(new Date());
-
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
-  // 초기 달력 윈도우 상단: 2025-08, 단 오늘 달이 2025-09 이상이면 2025-09로 자동 이동
+  // 초기 달력 윗달: 2025-08, 단 오늘이 2025-09 이후면 2025-09로
   const initialTop = useMemo(() => {
     const today = new Date();
     const sep2025 = new Date(2025, 8, 1);
-    if (today >= sep2025) return firstOfMonth(2025, 8); // 2025-09 (index 8)
-    return firstOfMonth(2025, 7); // 2025-08 (index 7)
+    if (today >= sep2025) return firstOfMonth(2025, 8); // 2025-09
+    return firstOfMonth(2025, 7); // 2025-08
   }, []);
-
-  const [topMonth, setTopMonth] = useState(initialTop); // 좌측 3개월 중 최상단 달
+  const [topMonth, setTopMonth] = useState(initialTop);
   const months = [0, 1, 2].map((i) => addMonths(topMonth, i));
-  const isAtInitialTop = useMemo(() => {
-    return sameYM(topMonth, firstOfMonth(MIN_INIT_YEAR, MIN_INIT_MONTH - 1));
-  }, [topMonth]);
+
+  const isAtInitialTop = sameYM(topMonth, firstOfMonth(MIN_INIT_YEAR, MIN_INIT_MONTH - 1));
   const canGoUp = !isAtInitialTop;
   const canGoDown = useMemo(() => {
     const nextBottom = addMonths(topMonth, 3);
     return nextBottom <= firstOfMonth(MAX_FUTURE_LIMIT.getFullYear(), MAX_FUTURE_LIMIT.getMonth());
   }, [topMonth]);
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date(Math.max(SPECIAL_MIN_DATE.getTime(), new Date().getTime())));
+  // 선택 날짜
+  const [selectedDate, setSelectedDate] = useState(
+    () => new Date(Math.max(SPECIAL_MIN_DATE.getTime(), new Date().getTime()))
+  );
 
+  // 모드
   const [mode, setMode] = useState("landing"); // landing | normal | admin
   const [pw, setPw] = useState("");
   const isAdmin = mode === "admin";
 
-  // 게시물 저장
+  // 게시물 상태
   const [postsByDate, setPostsByDate] = useState(() => {
     try {
       const raw = localStorage.getItem(LS_POSTS);
@@ -97,7 +94,7 @@ export default function App() {
     localStorage.setItem(LS_POSTS, JSON.stringify(postsByDate));
   }, [postsByDate]);
 
-  // 좋아요 상태(클라이언트 로컬)
+  // 좋아요 상태
   const [likes, setLikes] = useState(() => {
     try {
       const raw = localStorage.getItem(LS_LIKES);
@@ -117,21 +114,25 @@ export default function App() {
   const [bodyInput, setBodyInput] = useState("");
   const [attachments, setAttachments] = useState([]); // dataURL 배열
 
+  // 플레이스홀더
   const [phName, setPhName] = useState("사용자 이름");
   const [phTitle, setPhTitle] = useState("제목");
   const [phBody, setPhBody] = useState("환상적인 글을 적어보세요!");
 
+  // 유효성 표시
   const [invalidName, setInvalidName] = useState(false);
   const [invalidTitle, setInvalidTitle] = useState(false);
   const [invalidBody, setInvalidBody] = useState(false);
 
+  // 전체보기 모달
   const [viewPost, setViewPost] = useState(null);
 
+  // 날짜 클릭 가능 판단
   function isDateClickable(d) {
     if (!d) return false;
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (d > today) return false;
-    if (d.getFullYear() === 2025 && d.getMonth() === 7 && d < SPECIAL_MIN_DATE) return false;
+    if (d > today) return false; // 미래 불가
+    if (d.getFullYear() === 2025 && d.getMonth() === 7 && d < SPECIAL_MIN_DATE) return false; // 8/9 이전 불가
     return true;
   }
 
@@ -139,7 +140,6 @@ export default function App() {
     if (!canGoUp) return;
     setTopMonth(addMonths(topMonth, -3));
   }
-
   function handleArrowDown() {
     if (!canGoDown) return;
     setTopMonth(addMonths(topMonth, 3));
@@ -149,7 +149,6 @@ export default function App() {
     if (!isDateClickable(selectedDate)) return;
     setComposeOpen(true);
   }
-
   function resetCompose() {
     setComposeOpen(false);
     setNameInput("");
@@ -163,21 +162,15 @@ export default function App() {
     setInvalidTitle(false);
     setInvalidBody(false);
   }
-
   function validateCompose() {
     let ok = true;
-    if (!nameInput.trim()) {
-      ok = false; setInvalidName(true); setTimeout(() => setInvalidName(false), 1300);
-    }
-    if (!titleInput.trim()) {
-      ok = false; setInvalidTitle(true); setTimeout(() => setInvalidTitle(false), 1300);
-    }
+    if (!nameInput.trim()) { ok = false; setInvalidName(true); setTimeout(() => setInvalidName(false), 1300); }
+    if (!titleInput.trim()) { ok = false; setInvalidTitle(true); setTimeout(() => setInvalidTitle(false), 1300); }
     if (!bodyInput.trim() && attachments.length === 0) {
       ok = false; setInvalidBody(true); setTimeout(() => setInvalidBody(false), 1300);
     }
     return ok;
   }
-
   function submitCompose() {
     if (!validateCompose()) return;
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -194,7 +187,7 @@ export default function App() {
     };
     setPostsByDate((prev) => {
       const arr = prev[dateKey] ? [...prev[dateKey]] : [];
-      arr.push(newPost);
+      arr.push(newPost); // 시간순 뒤에 쌓임
       return { ...prev, [dateKey]: arr };
     });
     resetCompose();
@@ -221,6 +214,7 @@ export default function App() {
     });
   }
 
+  // 파일 첨부
   const fileInputRef = useRef(null);
   function handleAttachClick() {
     fileInputRef.current?.click();
@@ -240,10 +234,9 @@ export default function App() {
   }
 
   const dateKey = ymd(selectedDate);
-  const posts = (postsByDate[dateKey] || []).slice();
-  posts.sort((a, b) => a.createdAt - b.createdAt);
+  const posts = (postsByDate[dateKey] || []).slice().sort((a, b) => a.createdAt - b.createdAt);
 
-  const leftWidth = "39.855%"; // 5.5 / (5.5+8.3)
+  const leftWidth = "39.855%"; // 5.5 / (5.5 + 8.3)
   const rightWidth = "60.145%";
 
   return (
@@ -255,8 +248,9 @@ export default function App() {
           {/* 왼쪽 달력 */}
           <div className="relative h-full" style={{ width: leftWidth, minWidth: leftWidth }}>
             <div className="absolute inset-0 overflow-y-auto p-4 bg-black">
+              {/* 위쪽 화살표 (초기 2025-08에서는 숨김) */}
               <div className="flex justify-center mb-2">
-                {! ( (topMonth.getFullYear() === 2025) && (topMonth.getMonth() === 7) ) ? (
+                {!((topMonth.getFullYear() === 2025) && (topMonth.getMonth() === 7)) ? (
                   <button onClick={handleArrowUp} className="text-blue-400 hover:text-blue-300 select-none">▲</button>
                 ) : (
                   <div className="text-transparent select-none">▲</div>
@@ -306,8 +300,9 @@ export default function App() {
                           <button onClick={() => deletePost(p)} className="text-white text-xs bg-red-600 px-2 py-1 rounded">삭제</button>
                         )}
                       </div>
-                      <div className="text-lg mt-1 font-bold line-clamp-1 cursor-pointer" onClick={() => setViewPost(p)}>{p.title}</div>
+                      <div className="text-lg mt-1 font-bold cursor-pointer" onClick={() => setViewPost(p)}>{p.title}</div>
 
+                      {/* 미리보기: 좋아요 */}
                       <div className="mt-3 flex items-center gap-2">
                         <button aria-label="like" onClick={() => toggleLike(p)} className="text-red-500">
                           {likes[p.id] ? (<span>❤</span>) : (<span className="text-gray-500">♡</span>)}
@@ -366,6 +361,7 @@ export default function App() {
                 className={`w-full border rounded-xl px-4 py-3 resize-y ${invalidBody ? "border-red-500" : "border-gray-300"}`}
               />
 
+              {/* 첨부된 이미지 미리보기 */}
               {attachments.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {attachments.map((src, i) => (
@@ -420,9 +416,8 @@ export default function App() {
   );
 }
 
-function MonthView({ base, now, selectedDate, onSelect, isDateClickable }) {
+function MonthView({ base, selectedDate, onSelect, isDateClickable }) {
   const grid = getMonthDaysGrid(base);
-
   return (
     <div className="bg-black">
       <div className="text-white text-lg font-bold mb-2">{monthLabel(base)}</div>
@@ -435,7 +430,6 @@ function MonthView({ base, now, selectedDate, onSelect, isDateClickable }) {
           const isFutureDay = !clickable; // 회색 처리(미래/특규)
           const textColor = isFutureDay ? "text-gray-500" : "text-white";
           const bg = isSelected ? "bg-white/10" : "bg-black";
-
           return (
             <button
               key={idx}
@@ -454,19 +448,13 @@ function MonthView({ base, now, selectedDate, onSelect, isDateClickable }) {
 
 function Landing({ onEnterNormal, onEnterAdmin, pw, setPw, setMode }) {
   const [showPw, setShowPw] = useState(false);
-
   function tryAdmin() {
-    if (pw === PASSWORD) {
-      setMode("admin");
-    } else {
-      alert("비밀번호가 올바르지 않습니다.");
-    }
+    if (pw === PASSWORD) setMode("admin");
+    else alert("비밀번호가 올바르지 않습니다.");
   }
-
   return (
     <div className="w-full h-screen bg-black text-white flex flex-col items-center justify-center relative">
       <div className="absolute top-1/4 -translate-y-1/2 text-2xl font-bold">08 대화방</div>
-
       <div className="mt-10 flex items-center gap-6">
         <button onClick={onEnterNormal} className="px-6 py-3 rounded-xl bg-white text-black font-semibold hover:opacity-90">일반인으로 입장하기</button>
         {!showPw ? (
@@ -484,7 +472,6 @@ function Landing({ onEnterNormal, onEnterAdmin, pw, setPw, setMode }) {
           </div>
         )}
       </div>
-
       <div className="absolute right-3 bottom-3 text-xs text-gray-500">제작: 신바위</div>
     </div>
   );
